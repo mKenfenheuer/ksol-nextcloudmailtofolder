@@ -1,0 +1,16 @@
+﻿<ul class="navbar-nav">
+@if(User.Identity.IsAuthenticated)
+{
+    <li class="nav-item">
+        <a class="nav-link text-muted" href="#">Hello @User.Identity?.Name!</a>
+    </li>
+    <li class="nav-item">
+        <form  class="form-inline" asp-controller="Identity" asp-action="Logout" asp-route-returnUrl="/">
+            <button  type="submit" class="nav-link btn btn-link text-muted">Logout</button>
+        </form>
+    </li>
+}
+else
+{
+}
+</ul>

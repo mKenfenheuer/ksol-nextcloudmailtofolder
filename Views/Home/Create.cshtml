@@ -1,0 +1,32 @@
+﻿@model Destination
+@{
+    ViewData["Title"] = "Create Destination";
+}
+
+<div class="d-flex">
+    <h1 class="flex-grow-1">Create Destination</h1>
+    <div class="flex-shrink-1">
+        <button class="btn btn-primary" form="form" type="submit">Save</a>
+    </div>
+
+</div>
+<hr />
+
+<form id="form" method="post" asp-action="Create" asp-controller="Home">
+    <div class="mb-3">
+        <label asp-for="Name" class="form-label">Name</label>
+        <input asp-for="Name" class="form-control" />
+        <span asp-validation-for="Name" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Recipient" class="form-label">Destination E-Mail</label>
+        <input disabled class="form-control" value="@Model.Recipient" />
+        <input type="hidden" asp-for="Recipient" class="form-control" />
+        <span asp-validation-for="Recipient" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Path" class="form-label">NextCloud Path</label>
+        <input asp-for="Path" class="form-control" />
+        <span asp-validation-for="Path" class="text-danger"></span>
+    </div>
+</form>
