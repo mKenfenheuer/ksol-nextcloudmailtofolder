@@ -50,7 +50,7 @@ namespace KSol.NextCloudMailToFolder.Mail
             var options = optionsBuilder.Build();
 
             _serviceProvider = new SmtpServer.ComponentModel.ServiceProvider();
-            _serviceProvider.Add(new SmtpServerMessageStore(_scopeFactory, options.ServerName));
+            _serviceProvider.Add(new SmtpServerMessageStore(_scopeFactory, options.ServerName, _logger));
 
             _server = new SmtpServer.SmtpServer(options, _serviceProvider);
         }
@@ -76,17 +76,21 @@ namespace KSol.NextCloudMailToFolder.Mail
 
         public class SmtpServerMessageStore : MessageStore
         {
+            private readonly ILogger<SmtpServerService> _logger;
             private IServiceScopeFactory _scopeFactory;
             private readonly string _host;
 
-            public SmtpServerMessageStore(IServiceScopeFactory scopeFactory, string host)
+            public SmtpServerMessageStore(IServiceScopeFactory scopeFactory, string host, ILogger<SmtpServerService> logger)
             {
                 _scopeFactory = scopeFactory;
                 _host = host;
+                _logger = logger;
             }
 
             public override async Task<SmtpResponse> SaveAsync(ISessionContext context, IMessageTransaction transaction, ReadOnlySequence<byte> buffer, CancellationToken cancellationToken)
             {
+                var sent = false;
+                var failed = false;
                 using (var scope = _scopeFactory.CreateScope())
                 using (var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>())
                     foreach (var destination in transaction.To)
@@ -103,25 +107,53 @@ namespace KSol.NextCloudMailToFolder.Mail
                             // Implement your logic to save the message to the destination folder
                             // For example, you can use the destinationEntity.Path property to determine where to save the message
                             // You can also use the transaction.Message property to get the message content
-                            var attachments = mailMessage.Attachments.ToArray();
+                            var attachments = mailMessage.BodyParts.Cast<MimePart>().Where(b => b.FileName != null).ToArray();
 
                             HttpClient client = new HttpClient();
                             client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", destinationEntity.User.Token);
 
                             foreach (MimePart attachment in attachments)
                             {
-                                var base64 = new StreamReader(attachment.Content.Stream).ReadToEnd();
-                                var ms = new MemoryStream(Convert.FromBase64String(base64));
+                                byte[] bytes = [];
+
+                                if (attachment.ContentTransferEncoding == ContentEncoding.Base64)
+                                {
+                                    var base64 = new StreamReader(attachment.Content.Stream).ReadToEnd();
+                                    bytes = Convert.FromBase64String(base64);
+                                }
+                                else
+                                {
+                                    using (var stream = new MemoryStream())
+                                    {
+                                        await attachment.Content.Stream.CopyToAsync(stream);
+                                        bytes = stream.ToArray();
+                                    }
+                                }
+
+                                var ms = new MemoryStream(bytes);
 
                                 var content = new StreamContent(ms);
                                 content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(attachment.ContentType.MimeType);
                                 var result = await client.PutAsync("https://nc.ksol.it/remote.php/dav/files/" + destinationEntity.User.Id + "/" + destinationEntity.Path + "/" + attachment.FileName, content);
+                                if (result.IsSuccessStatusCode)
+                                {
+                                    _logger.LogInformation($"Attachment {destinationEntity.Path}/{attachment.FileName} for user {destinationEntity.UserId} uploaded to Nextcloud successfully.");
+                                    sent = true;
+                                }
+                                else
+                                {
+                                    failed = true;
+                                    var str = await result.Content.ReadAsStringAsync();
+                                    _logger.LogError($"Failed to upload attachment {attachment.FileName} to Nextcloud: {result.StatusCode} - {str}");
+                                }
                             }
-
-                            return new SmtpResponse(SmtpReplyCode.Ok, $"2.0.0 OK: queueued as {mailMessage.MessageId}"); 
                         }
                     }
 
+                if (sent && !failed)
+                    return new SmtpResponse(SmtpReplyCode.Ok, $"2.0.0 OK");
+
+                _logger.LogInformation($"Message rejected from {transaction.From.User}@{transaction.From.Host} to {string.Join(", ", transaction.To.Select(t => t.User + "@" + t.Host))}");
                 return new SmtpResponse(SmtpReplyCode.BadEmailAddress, "Destination not found");
             }
         }
