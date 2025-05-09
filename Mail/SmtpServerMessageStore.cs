@@ -35,7 +35,7 @@ namespace KSol.NextCloudMailToFolder.Mail
                         .Include(d => d.User)
                         .FirstOrDefaultAsync(d => d.Recipient == destinationAddress);
 
-                    if (destinationEntity != null)
+                    if (destinationEntity != null && destinationEntity.User != null)
                     {
                         var mailMessage = MimeMessage.Load(new MemoryStream(buffer.ToArray()));
                         // Save the message to the destination folder
@@ -43,9 +43,6 @@ namespace KSol.NextCloudMailToFolder.Mail
                         // For example, you can use the destinationEntity.Path property to determine where to save the message
                         // You can also use the transaction.Message property to get the message content
                         var attachments = mailMessage.BodyParts.Cast<MimePart>().Where(b => b.FileName != null).ToArray();
-
-                        HttpClient client = new HttpClient();
-                        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", destinationEntity.User.Token);
 
                         foreach (MimePart attachment in attachments)
                         {
@@ -67,7 +64,7 @@ namespace KSol.NextCloudMailToFolder.Mail
 
                             var ms = new MemoryStream(bytes);
 
-                            var result = await nextcloudApi.UploadFileAsync(attachment.FileName, ms, attachment.ContentType.MimeType, destinationEntity.User.Id + "/" + destinationEntity.Path + "/" + attachment.FileName);
+                            var result = await nextcloudApi.UploadFileAsync(destinationEntity.User.Id, ms, attachment.ContentType.MimeType, destinationEntity.User.Id + "/" + destinationEntity.Path + "/" + attachment.FileName);
                             if (result)
                             {
                                 _logger.LogInformation($"Attachment {destinationEntity.Path}/{attachment.FileName} for user {destinationEntity.UserId} uploaded to Nextcloud successfully.");
