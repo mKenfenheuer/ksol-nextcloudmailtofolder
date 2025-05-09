@@ -13,7 +13,6 @@ namespace KSol.NextCloudMailToFolder.Mail
     public class SmtpServerMessageStore : MessageStore
     {
         private readonly ILogger<SmtpServerService> _logger;
-        private readonly ApplicationDbContext _context;
         private readonly IServiceScopeFactory _serviceScopeFactory;
 
         public SmtpServerMessageStore(ILogger<SmtpServerService> logger, IServiceScopeFactory serviceScopeFactory)
@@ -28,10 +27,11 @@ namespace KSol.NextCloudMailToFolder.Mail
             var failed = false;
             using (var scope = _serviceScopeFactory.CreateScope())
             using (var nextcloudApi = scope.ServiceProvider.GetRequiredService<NextCloudApi>())
+            using (var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>())
                 foreach (var destination in transaction.To)
                 {
                     var destinationAddress = $"{destination.User}@{destination.Host}";
-                    var destinationEntity = await _context.Destinations
+                    var destinationEntity = await dbContext.Destinations
                         .Include(d => d.User)
                         .FirstOrDefaultAsync(d => d.Recipient == destinationAddress);
 

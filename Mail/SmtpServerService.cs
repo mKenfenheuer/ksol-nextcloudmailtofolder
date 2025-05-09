@@ -13,7 +13,6 @@ namespace KSol.NextCloudMailToFolder.Mail
         private readonly SmtpServer.ComponentModel.ServiceProvider _serviceProvider;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly SmtpServerConfiguration _configuration = new SmtpServerConfiguration();
-        private readonly SmtpServerMessageStore _messageStore;
         private Task _serverTask;
 
         public SmtpServerService(ILogger<SmtpServerService> logger, IServiceScopeFactory scopeFactory, IConfiguration configuration, SmtpServerMessageStore messageStore)
@@ -47,10 +46,9 @@ namespace KSol.NextCloudMailToFolder.Mail
             var options = optionsBuilder.Build();
 
             _serviceProvider = new SmtpServer.ComponentModel.ServiceProvider();
-            _serviceProvider.Add(_messageStore);
+            _serviceProvider.Add(messageStore);
 
             _server = new SmtpServer.SmtpServer(options, _serviceProvider);
-            _messageStore = messageStore;
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
