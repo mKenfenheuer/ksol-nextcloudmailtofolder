@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using System.Text;
 using static KSol.NextCloudMailToFolder.Mail.SmtpServerService;
+using KSol.NextCloudMailToFolder.Mail;
 
 namespace KSol.NextCloudMailToFolder.Controllers;
 

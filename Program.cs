@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using KSol.NextCloudMailToFolder.Api;
 using KSol.NextCloudMailToFolder.Data;
 using KSol.NextCloudMailToFolder.Mail;
 using KSol.NextCloudMailToFolder.Models;
@@ -105,6 +106,8 @@ public class Program
                 .Build();
         });
 
+        builder.Services.AddScoped<NextCloudApi>();
+        builder.Services.AddSingleton<SmtpServerMessageStore>();
         builder.Services.AddHostedService<SmtpServerService>();
 
         app = builder.Build();
